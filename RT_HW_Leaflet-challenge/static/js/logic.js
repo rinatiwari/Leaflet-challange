@@ -1,35 +1,8 @@
 // Store our API endpoint inside queryUrl
-var queryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2020-01-16&endtime=" +
-  "2020-01-17&maxlongitude=-69.52148437&minlongitude=-123.83789062&maxlatitude=48.74894534&minlatitude=25.16517337";
+var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
 
-// Perform a GET request to the query URL
-d3.json(queryUrl, function(data) {
-  // Once we get a response, send the data.features object to the createFeatures function
-  createFeatures(data.features);
-});
-
-function createFeatures(earthquakeData) {
-
-  // Define a function we want to run once for each feature in the features array
-  // Give each feature a popup describing the place and time of the earthquake
-  function do_OnEachFeature(feature, obj) {
-    obj.bindPopup("<h3>" + feature.properties.place +
-      "</h3><hr><p>" + new Date(feature.properties.time) + "</p>");
-
-    console.log(feature);
-  }
-
-  // Create a GeoJSON layer containing the features array on the earthquakeData object
-  // Run the onEachFeature function once for each piece of data in the array
-  var earthquakes = L.geoJSON(earthquakeData, {
-    onEachFeature: do_OnEachFeature
-  });
-
-  // Sending our earthquakes layer to the createMap function
-  createMap(earthquakes);
-}
-
-function createMap(earthquakes) {
+// function createMap(earthquakes) {
+var earthquakes= new L.LayerGroup();
 
   // Define streetmap and darkmap layers
   var streetmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
@@ -46,6 +19,7 @@ function createMap(earthquakes) {
     accessToken: API_KEY
   });
 
+  var earthquakes= new L.LayerGroup();
   // Define a baseMaps object to hold our base layers
   var baseMaps = {
     "Street Map": streetmap,
@@ -65,11 +39,60 @@ function createMap(earthquakes) {
     zoom: 5,
     layers: [streetmap, earthquakes]
   });
-
+  streetmap.addTo(myMap)
   // Create a layer control
   // Pass in our baseMaps and overlayMaps
   // Add the layer control to the map
   L.control.layers(baseMaps, overlayMaps, {
     collapsed: false
   }).addTo(myMap);
-}
+
+  d3.json(queryUrl, function(data) {
+  // Once we get a response, send the data.features object to the createFeatures function
+  // createFeatures(data.features);
+  function styleinfo(feature) {
+    return {
+      opacity: 1,
+      fillColor: getColor(feature.properties.mag),
+      radius: getRadius(feature.properties.mag),
+      color: "000000",
+      stroke: true,
+      weight: 0.5,
+      fillOpacity: 1
+    };
+  }
+  function getColor(magnitude) {
+    switch (true) {
+      case magnitude > 5:
+        return "#ea2c2c";
+      case magnitude > 4:
+        return "#ea822c";
+      case magnitude > 3:
+        return "#ee9c00";
+      case magnitude > 2:
+        return "#eecc00";
+      case magnitude > 1:
+        return "#d4ee00";
+      default:
+        return "#98ee00";
+      }
+  }
+  function getRadius(magnitude) {
+    if (magnitude === 0) {
+      return 1;
+    }
+    return magnitude *4 ;
+  }
+  
+  // function createFeatures(earthquakeData) {
+  L.geoJSON((data),{
+    pointToLayer: function(feature, latlng) {
+      return L.circleMarker(latlng);
+    },
+    style: styleinfo,
+    onEachFeature: function(feature, layer) {
+      layer.bindPopup("Magnitude: " + feature.properties.mag + "<br>Location: " + feature.properties.place);
+    }
+  }).addTo(earthquakes);
+  earthquakes.addTo(myMap);
+});
